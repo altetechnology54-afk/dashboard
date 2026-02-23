@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef } from 'react';
+import api from '../api/client';
 import { Save, Plus, Trash2, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const HomeEdit = () => {
     const [content, setContent] = useState({ slides: [], isActive: true });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
+    const fileInputRefs = useRef({});
+
+    const triggerFileInput = (index) => {
+        if (fileInputRefs.current[index]) {
+            fileInputRefs.current[index].click();
+        }
+    };
 
     useEffect(() => {
         fetchContent();
@@ -16,7 +21,7 @@ const HomeEdit = () => {
 
     const fetchContent = async () => {
         try {
-            const res = await axios.get(`${API_URL}/home/hero-slider`);
+            const res = await api.get('/home/hero-slider');
             setContent(res.data);
             setLoading(false);
         } catch (err) {
@@ -26,13 +31,25 @@ const HomeEdit = () => {
     };
 
     const handleSlideChange = (index, field, value, subField = null) => {
-        const newSlides = [...content.slides];
-        if (subField) {
-            newSlides[index][field][subField] = value;
-        } else {
-            newSlides[index][field] = value;
-        }
-        setContent({ ...content, slides: newSlides });
+        const newSlides = content.slides.map((slide, i) => {
+            if (i !== index) return slide;
+
+            if (subField) {
+                return {
+                    ...slide,
+                    [field]: {
+                        ...slide[field],
+                        [subField]: value
+                    }
+                };
+            }
+            return {
+                ...slide,
+                [field]: value
+            };
+        });
+
+        setContent(prev => ({ ...prev, slides: newSlides }));
     };
 
     const addSlide = () => {
@@ -54,7 +71,7 @@ const HomeEdit = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await axios.post(`${API_URL}/home/hero-slider`, content);
+            await api.post('/home/hero-slider', content);
             setMessage('Changes saved successfully!');
             setTimeout(() => setMessage(''), 3000);
         } catch (err) {
@@ -69,16 +86,26 @@ const HomeEdit = () => {
         const file = e.target.files[0];
         if (!file) return;
 
+        console.log('⚡ Starting upload for file:', file.name);
         const formData = new FormData();
         formData.append('image', file);
 
         try {
-            const res = await axios.post(`${API_URL}/upload`, formData, {
+            const res = await api.post('/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            handleSlideChange(index, 'image', res.data.url);
+
+            console.log('✅ Upload successful. Received URL:', res.data.url);
+
+            if (res.data.url) {
+                handleSlideChange(index, 'image', res.data.url);
+                setMessage('Frame injected into neural network. Click Broadcast to save permanently.');
+                setTimeout(() => setMessage(''), 4000);
+            }
         } catch (err) {
-            console.error('Image upload failed:', err);
+            console.error('❌ Image upload failed:', err.response?.data || err);
+            setMessage(`Upload failed: ${err.response?.data?.error || 'Server Error'}`);
+            setTimeout(() => setMessage(''), 6000);
         }
     };
 
@@ -129,18 +156,46 @@ const HomeEdit = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10">
                             {/* Image Section */}
                             <div className="space-y-6">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Neural Visualization (4K)</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Neural Visualization (4K)</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => triggerFileInput(index)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl cursor-pointer transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20"
+                                    >
+                                        <ImageIcon className="w-3 h-3" />
+                                        Upload Image
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={el => fileInputRefs.current[index] = el}
+                                        className="hidden"
+                                        onChange={(e) => handleImageUpload(index, e)}
+                                    />
+                                </div>
                                 <div className="aspect-[16/9] bg-slate-900 rounded-[32px] border border-white/5 overflow-hidden group/image relative flex items-center justify-center">
                                     {slide.image ? (
-                                        <img src={slide.image} alt="Slide Preview" className="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-110" />
+                                        <img
+                                            src={slide.image}
+                                            alt="Slide Preview"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-110"
+                                            onError={(e) => {
+                                                e.target.src = 'https://via.placeholder.com/1920x1080?text=Neural+Connection+Lost';
+                                            }}
+                                        />
                                     ) : (
-                                        <ImageIcon className="w-16 h-16 text-slate-800" />
+                                        <div className="flex flex-col items-center gap-4 text-slate-800">
+                                            <ImageIcon className="w-16 h-16" />
+                                            <span className="text-[10px] uppercase font-black tracking-widest">No Stream Detected</span>
+                                        </div>
                                     )}
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
-                                        <label className="bg-white text-black font-black px-6 py-3 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest italic">
-                                            Upload New Frame
-                                            <input type="file" className="hidden" onChange={(e) => handleImageUpload(index, e)} />
-                                        </label>
+                                    <div
+                                        onClick={() => triggerFileInput(index)}
+                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                                    >
+                                        <div className="bg-white text-black font-black px-6 py-3 rounded-xl hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest italic shadow-2xl">
+                                            Change Frame
+                                        </div>
                                     </div>
                                 </div>
                             </div>
