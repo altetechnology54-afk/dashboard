@@ -24,6 +24,7 @@ const DashboardLayout = () => {
 
     const navItems = [
         { title: 'Overview', icon: LayoutDashboard, path: '/' },
+        { title: 'Home Page', icon: Settings, path: '/home' },
         { title: 'Catalog Systems', icon: Layers, path: '/catalogs' },
         { title: 'Cloud Logs', icon: Database, path: '/logs' },
         { title: 'Control Panel', icon: Settings, path: '/settings' },

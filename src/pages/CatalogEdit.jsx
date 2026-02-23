@@ -52,7 +52,8 @@ const CatalogEdit = () => {
                         subDescription: typeof data.subDescription === 'string' ? { de: data.subDescription, en: data.subDescription } : data.subDescription || { de: '', en: '' },
                         benefitBar: typeof data.benefitBar === 'string' ? { de: data.benefitBar, en: data.benefitBar } : data.benefitBar || { de: '', en: '' },
                         applicationArea: typeof data.applicationArea === 'string' ? { de: data.applicationArea, en: data.applicationArea } : data.applicationArea || { de: '', en: '' },
-                        articles: data.articles || []
+                        articles: data.articles || [],
+                        images: data.images || { hero: '' }
                     };
                     setFormData(normalizedData);
                 }
