@@ -9,7 +9,8 @@ import {
     Layers,
     ChevronRight,
     User as UserIcon,
-    Activity
+    Activity,
+    FileText
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -25,6 +26,7 @@ const DashboardLayout = () => {
     const navItems = [
         { title: 'Overview', icon: LayoutDashboard, path: '/' },
         { title: 'Home Page', icon: Settings, path: '/home' },
+        { title: 'Info Pages', icon: FileText, path: '/pages' },
         { title: 'Catalog Systems', icon: Layers, path: '/catalogs' },
         { title: 'Cloud Logs', icon: Database, path: '/logs' },
         { title: 'Control Panel', icon: Settings, path: '/settings' },

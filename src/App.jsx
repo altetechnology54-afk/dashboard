@@ -6,6 +6,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import CatalogList from './pages/CatalogList';
 import CatalogEdit from './pages/CatalogEdit';
 import HomeEdit from './pages/HomeEdit';
+import PagesEdit from './pages/PagesEdit';
 import './index.css';
 
 // Protected Route Component
@@ -85,6 +86,7 @@ const App = () => {
           }>
             <Route index element={<DashboardHome />} />
             <Route path="home" element={<HomeEdit />} />
+            <Route path="pages" element={<PagesEdit />} />
             <Route path="catalogs" element={<CatalogList />} />
             <Route path="catalogs/edit/:id" element={<CatalogEdit />} />
             <Route path="logs" element={<div className="text-white p-10 bg-white/5 rounded-[40px] border border-white/10 uppercase font-black italic tracking-tighter text-2xl">Streaming Logs Placeholder...</div>} />
