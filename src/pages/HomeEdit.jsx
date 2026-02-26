@@ -2,43 +2,84 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import {
     Save, Plus, Trash2, Image as ImageIcon, Link as LinkIcon,
-    ArrowUp, ArrowDown, Layout, Zap, BarChart3, Info, Eye, EyeOff
+    ArrowUp, ArrowDown, Layout, Zap, BarChart3, Info, Eye, EyeOff,
+    Loader2
 } from 'lucide-react';
+import ImageUpload from '../components/ImageUpload';
+import Toast from '../components/Toast';
 
 const HomeEdit = () => {
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState('');
+    const [toast, setToast] = useState({ message: '', type: 'info' });
+    const [activeLang, setActiveLang] = useState('de');
     const fileInputRefs = useRef({});
 
     useEffect(() => {
         fetchSections();
     }, []);
 
+    const showToast = (message, type = 'info') => {
+        setToast({ message, type });
+    };
+
     const fetchSections = async () => {
         try {
-            // New endpoint to get all sections
             const res = await api.get('/home');
-            // Backend returns sections sorted by order
             setSections(res.data);
             setLoading(false);
         } catch (err) {
             console.error('Error fetching home sections:', err);
             setLoading(false);
+            showToast('Failed to fetch sections', 'error');
         }
     };
 
+    const validateSection = (section) => {
+        const { type, data } = section;
+        if (type === 'hero-slider') {
+            if (!data.slides || data.slides.length === 0) return 'Add at least one slide.';
+            for (let i = 0; i < data.slides.length; i++) {
+                if (!data.slides[i].image) return `Slide #${i + 1} is missing an image.`;
+            }
+        } else if (type === 'features') {
+            if (!data.features || data.features.length === 0) return 'Add at least one feature.';
+            for (let i = 0; i < data.features.length; i++) {
+                const f = data.features[i];
+                if (!f.title.de || !f.title.en || !f.content.de || !f.content.en)
+                    return `Feature #${i + 1} is missing required text fields.`;
+            }
+        } else if (type === 'stats') {
+            if (!data.stats || data.stats.length === 0) return 'Add at least one stat.';
+            for (let i = 0; i < data.stats.length; i++) {
+                const s = data.stats[i];
+                if (!s.number || !s.label.de || !s.label.en)
+                    return `Stat #${i + 1} is missing required fields.`;
+            }
+        } else if (type === 'about') {
+            const a = data.about;
+            if (!a.title.de || !a.title.en || !a.content.de || !a.content.en || !a.image)
+                return 'About section is missing required fields.';
+        }
+        return null;
+    };
+
     const handleSaveSection = async (sectionData) => {
+        const error = validateSection(sectionData);
+        if (error) {
+            showToast(error, 'error');
+            return;
+        }
+
         setSaving(true);
         try {
             await api.post(`/home/${sectionData.section}`, sectionData);
-            setMessage(`Section "${sectionData.section}" saved successfully!`);
-            setTimeout(() => setMessage(''), 3000);
-            fetchSections(); // Refresh list
+            showToast(`Section saved successfully!`, 'success');
+            fetchSections();
         } catch (err) {
             console.error('Error saving section:', err);
-            setMessage('Error saving changes.');
+            showToast('Error saving changes.', 'error');
         } finally {
             setSaving(false);
         }
@@ -49,10 +90,10 @@ const HomeEdit = () => {
         try {
             await api.delete(`/home/${sectionId}`);
             setSections(sections.filter(s => s.section !== sectionId));
-            setMessage('Section deleted.');
-            setTimeout(() => setMessage(''), 3000);
+            showToast('Section deleted.', 'success');
         } catch (err) {
             console.error('Error deleting section:', err);
+            showToast('Error deleting section.', 'error');
         }
     };
 
@@ -61,12 +102,10 @@ const HomeEdit = () => {
         const targetIndex = index + direction;
         if (targetIndex < 0 || targetIndex >= newSections.length) return;
 
-        // Swap orders
         const tempOrder = newSections[index].order;
         newSections[index].order = newSections[targetIndex].order;
         newSections[targetIndex].order = tempOrder;
 
-        // Save both sections
         setSaving(true);
         try {
             await Promise.all([
@@ -74,8 +113,10 @@ const HomeEdit = () => {
                 api.post(`/home/${newSections[targetIndex].section}`, newSections[targetIndex])
             ]);
             fetchSections();
+            showToast('Order updated.', 'success');
         } catch (err) {
             console.error('Error moving section:', err);
+            showToast('Error reordering sections.', 'error');
         } finally {
             setSaving(false);
         }
@@ -137,11 +178,20 @@ const HomeEdit = () => {
                 </div>
             </header>
 
-            {message && (
-                <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-6 rounded-[24px] font-black uppercase tracking-widest text-[10px] animate-in fade-in slide-in-from-top-4">
-                    {message}
+            <div className="flex items-center gap-6 mb-8">
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Language:</div>
+                <div className="bg-white/5 p-1 rounded-2xl flex gap-1 border border-white/10">
+                    {['de', 'en'].map(lang => (
+                        <button
+                            key={lang}
+                            onClick={() => setActiveLang(lang)}
+                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeLang === lang ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-500 hover:text-white'}`}
+                        >
+                            {lang}
+                        </button>
+                    ))}
                 </div>
-            )}
+            </div>
 
             <div className="space-y-16">
                 {sections.map((section, index) => (
@@ -157,9 +207,18 @@ const HomeEdit = () => {
                         isFirst={index === 0}
                         isLast={index === sections.length - 1}
                         saving={saving}
+                        activeLang={activeLang}
                     />
                 ))}
             </div>
+
+            {toast.message && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast({ message: '', type: 'info' })}
+                />
+            )}
         </div>
     );
 };
@@ -174,10 +233,9 @@ const SectionAddButton = ({ icon, label, onClick }) => (
     </button>
 );
 
-const SectionEditor = ({ section, onSave, onDelete, onMoveUp, onMoveDown, onUpdate, onToggleActive, isFirst, isLast, saving }) => {
+const SectionEditor = ({ section, onSave, onDelete, onMoveUp, onMoveDown, onUpdate, onToggleActive, isFirst, isLast, saving, activeLang }) => {
     return (
         <div className={`bg-white/5 border border-white/10 rounded-[40px] overflow-hidden transition-all ${!section.isActive ? 'opacity-50 grayscale' : ''}`}>
-            {/* Toolbar */}
             <div className="bg-white/[0.02] border-b border-white/10 px-10 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-6">
                     <div className="flex flex-col">
@@ -196,8 +254,12 @@ const SectionEditor = ({ section, onSave, onDelete, onMoveUp, onMoveDown, onUpda
                     <button onClick={onToggleActive} className={`p-3 rounded-xl border transition-all ${section.isActive ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
                         {section.isActive ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                     </button>
-                    <button onClick={onSave} disabled={saving} className="bg-blue-600 hover:bg-blue-500 text-white font-black px-8 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest italic shadow-xl shadow-blue-600/20">
-                        <Save className="w-4 h-4" /> Save
+                    <button onClick={onSave} disabled={saving} className="bg-blue-600 hover:bg-blue-500 text-white font-black px-8 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest italic shadow-xl shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {saving ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                        ) : (
+                            <><Save className="w-4 h-4" /> Save</>
+                        )}
                     </button>
                     <button onClick={onDelete} className="p-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all">
                         <Trash2 className="w-5 h-5" />
@@ -205,30 +267,30 @@ const SectionEditor = ({ section, onSave, onDelete, onMoveUp, onMoveDown, onUpda
                 </div>
             </div>
 
-            {/* Content Editor */}
             <div className="p-10">
-                {section.type === 'hero-slider' && <SliderEditor data={section.data} onChange={onUpdate} />}
-                {section.type === 'features' && <FeaturesEditor data={section.data} onChange={onUpdate} />}
-                {section.type === 'stats' && <StatsEditor data={section.data} onChange={onUpdate} />}
-                {section.type === 'about' && <AboutEditor data={section.data} onChange={onUpdate} />}
+                {section.type === 'hero-slider' && <SliderEditor data={section.data} onChange={onUpdate} activeLang={activeLang} />}
+                {section.type === 'features' && <FeaturesEditor data={section.data} onChange={onUpdate} activeLang={activeLang} />}
+                {section.type === 'stats' && <StatsEditor data={section.data} onChange={onUpdate} activeLang={activeLang} />}
+                {section.type === 'about' && <AboutEditor data={section.data} onChange={onUpdate} activeLang={activeLang} />}
             </div>
         </div>
     );
 };
 
-// --- Sub-Editors ---
-
-const SliderEditor = ({ data, onChange }) => {
+const SliderEditor = ({ data, onChange, activeLang }) => {
     const slides = data.slides || [];
 
     const updateSlide = (idx, field, val, sub = null) => {
         const newSlides = [...slides];
-        if (sub) newSlides[idx][field][sub] = val;
-        else newSlides[idx][field] = val;
+        if (sub) {
+            newSlides[idx][field] = { ...newSlides[idx][field], [sub]: val };
+        } else {
+            newSlides[idx][field] = val;
+        }
         onChange({ ...data, slides: newSlides });
     };
 
-    const addSlide = () => onChange({ ...data, slides: [...slides, { image: '', title: { de: '', en: '' }, subtitle: { de: '', en: '' }, link: '', order: slides.length + 1 }] });
+    const addSlide = () => onChange({ ...data, slides: [...slides, { image: '', link: '', order: slides.length + 1 }] });
     const removeSlide = (idx) => onChange({ ...data, slides: slides.filter((_, i) => i !== idx) });
 
     return (
@@ -240,21 +302,16 @@ const SliderEditor = ({ data, onChange }) => {
                         <button onClick={() => removeSlide(idx)} className="text-red-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Image URL</label>
-                            <input type="text" value={slide.image} onChange={e => updateSlide(idx, 'image', e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" placeholder="https://..." />
+                        <div className="space-y-4 md:col-span-2">
+                            <ImageUpload
+                                label="Slide Image"
+                                currentImage={slide.image}
+                                onUploadSuccess={(url) => updateSlide(idx, 'image', url)}
+                            />
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-4 md:col-span-2">
                             <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Link</label>
                             <input type="text" value={slide.link} onChange={e => updateSlide(idx, 'link', e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" placeholder="/de/..." />
-                        </div>
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Title (DE)</label>
-                            <input type="text" value={slide.title.de} onChange={e => updateSlide(idx, 'title', e.target.value, 'de')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
-                        </div>
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Title (EN)</label>
-                            <input type="text" value={slide.title.en} onChange={e => updateSlide(idx, 'title', e.target.value, 'en')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
                         </div>
                     </div>
                 </div>
@@ -266,13 +323,16 @@ const SliderEditor = ({ data, onChange }) => {
     );
 };
 
-const FeaturesEditor = ({ data, onChange }) => {
+const FeaturesEditor = ({ data, onChange, activeLang }) => {
     const features = data.features || [];
 
     const updateFeature = (idx, field, val, sub = null) => {
         const newFeatures = [...features];
-        if (sub) newFeatures[idx][field][sub] = val;
-        else newFeatures[idx][field] = val;
+        if (sub) {
+            newFeatures[idx][field] = { ...newFeatures[idx][field], [sub]: val };
+        } else {
+            newFeatures[idx][field] = val;
+        }
         onChange({ ...data, features: newFeatures });
     };
 
@@ -293,12 +353,12 @@ const FeaturesEditor = ({ data, onChange }) => {
                             <input type="text" value={feature.icon} onChange={e => updateFeature(idx, 'icon', e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
                         </div>
                         <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Title (DE)</label>
-                            <input type="text" value={feature.title.de} onChange={e => updateFeature(idx, 'title', e.target.value, 'de')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
+                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Title ({activeLang.toUpperCase()})</label>
+                            <input type="text" value={feature.title[activeLang] || ''} onChange={e => updateFeature(idx, 'title', e.target.value, activeLang)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
                         </div>
                         <div className="space-y-4 md:col-span-2">
-                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Content (DE)</label>
-                            <textarea value={feature.content.de} onChange={e => updateFeature(idx, 'content', e.target.value, 'de')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none min-h-[60px]" />
+                            <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Content ({activeLang.toUpperCase()})</label>
+                            <textarea value={feature.content[activeLang] || ''} onChange={e => updateFeature(idx, 'content', e.target.value, activeLang)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none min-h-[60px]" />
                         </div>
                     </div>
                 </div>
@@ -310,13 +370,16 @@ const FeaturesEditor = ({ data, onChange }) => {
     );
 };
 
-const StatsEditor = ({ data, onChange }) => {
+const StatsEditor = ({ data, onChange, activeLang }) => {
     const stats = data.stats || [];
 
     const updateStat = (idx, field, val, sub = null) => {
         const newStats = [...stats];
-        if (sub) newStats[idx][field][sub] = val;
-        else newStats[idx][field] = val;
+        if (sub) {
+            newStats[idx][field] = { ...newStats[idx][field], [sub]: val };
+        } else {
+            newStats[idx][field] = val;
+        }
         onChange({ ...data, stats: newStats });
     };
 
@@ -333,8 +396,8 @@ const StatsEditor = ({ data, onChange }) => {
                         <input type="text" value={stat.number} onChange={e => updateStat(idx, 'number', e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Label (DE)</label>
-                        <input type="text" value={stat.label.de} onChange={e => updateStat(idx, 'label', e.target.value, 'de')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
+                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Label ({activeLang.toUpperCase()})</label>
+                        <input type="text" value={stat.label[activeLang] || ''} onChange={e => updateStat(idx, 'label', e.target.value, activeLang)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
                     </div>
                 </div>
             ))}
@@ -346,13 +409,16 @@ const StatsEditor = ({ data, onChange }) => {
     );
 };
 
-const AboutEditor = ({ data, onChange }) => {
+const AboutEditor = ({ data, onChange, activeLang }) => {
     const about = data.about || { title: { de: '', en: '' }, content: { de: '', en: '' }, image: '', link: '' };
 
     const update = (field, val, sub = null) => {
         const newAbout = { ...about };
-        if (sub) newAbout[field][sub] = val;
-        else newAbout[field] = val;
+        if (sub) {
+            newAbout[field] = { ...newAbout[field], [sub]: val };
+        } else {
+            newAbout[field] = val;
+        }
         onChange({ ...data, about: newAbout });
     };
 
@@ -360,19 +426,20 @@ const AboutEditor = ({ data, onChange }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
                 <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Title (DE)</label>
-                    <input type="text" value={about.title.de} onChange={e => update('title', e.target.value, 'de')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Title ({activeLang.toUpperCase()})</label>
+                    <input type="text" value={about.title[activeLang] || ''} onChange={e => update('title', e.target.value, activeLang)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
                 </div>
                 <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Content (DE)</label>
-                    <textarea value={about.content.de} onChange={e => update('content', e.target.value, 'de')} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none min-h-[150px]" />
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Content ({activeLang.toUpperCase()})</label>
+                    <textarea value={about.content[activeLang] || ''} onChange={e => update('content', e.target.value, activeLang)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none min-h-[150px]" />
                 </div>
             </div>
             <div className="space-y-6">
-                <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Image URL</label>
-                    <input type="text" value={about.image} onChange={e => update('image', e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />
-                </div>
+                <ImageUpload
+                    label="Section Image"
+                    currentImage={about.image}
+                    onUploadSuccess={(url) => update('image', url)}
+                />
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Button Link</label>
                     <input type="text" value={about.link} onChange={e => update('link', e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none" />

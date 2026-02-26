@@ -32,7 +32,14 @@ const CatalogEdit = () => {
         benefitBar: { de: '', en: '' },
         applicationArea: { de: '', en: '' },
         type: 'product',
-        images: { hero: '' },
+        images: {
+            hero: '',
+            tubeInTube: '',
+            insertMount: '',
+            deckschraube: '',
+            diagramImage: '',
+            extraImages: []
+        },
         variants: [],
         articles: []
     });
@@ -43,7 +50,6 @@ const CatalogEdit = () => {
                 const res = await api.get(`/catalog-sections/${id}`);
                 if (res.data.success) {
                     const data = res.data.data;
-                    // Ensure bilingual structure exists for incoming data (migration check)
                     const normalizedData = {
                         ...data,
                         name: typeof data.name === 'string' ? { de: data.name, en: data.name } : data.name || { de: '', en: '' },
@@ -53,14 +59,23 @@ const CatalogEdit = () => {
                         benefitBar: typeof data.benefitBar === 'string' ? { de: data.benefitBar, en: data.benefitBar } : data.benefitBar || { de: '', en: '' },
                         applicationArea: typeof data.applicationArea === 'string' ? { de: data.applicationArea, en: data.applicationArea } : data.applicationArea || { de: '', en: '' },
                         articles: data.articles || [],
-                        images: data.images || { hero: '' }
+                        images: {
+                            hero: '',
+                            tubeInTube: '',
+                            insertMount: '',
+                            deckschraube: '',
+                            diagramImage: '',
+                            extraImages: [],
+                            ...data.images
+                        }
                     };
                     setFormData(normalizedData);
                 }
             } catch (err) {
                 setError('Failed to fetch catalog details');
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
         fetchCatalog();
     }, [id]);
@@ -69,6 +84,38 @@ const CatalogEdit = () => {
         setFormData(prev => ({
             ...prev,
             [field]: { ...prev[field], [lang]: value }
+        }));
+    };
+
+    const handleImageChange = (field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            images: { ...prev.images, [field]: value }
+        }));
+    };
+
+    const handleExtraImageChange = (index, value) => {
+        setFormData(prev => {
+            const extra = [...(prev.images.extraImages || [])];
+            if (index === -1) {
+                extra.push(value);
+            } else {
+                extra[index] = value;
+            }
+            return {
+                ...prev,
+                images: { ...prev.images, extraImages: extra }
+            };
+        });
+    };
+
+    const removeExtraImage = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            images: {
+                ...prev.images,
+                extraImages: (prev.images.extraImages || []).filter((_, i) => i !== index)
+            }
         }));
     };
 
@@ -160,9 +207,10 @@ const CatalogEdit = () => {
                             <Sparkles className="w-3 h-3 text-blue-500" />
                             <span>Catalog Editor</span>
                             <ChevronRight className="w-3 h-3" />
-                            <span className={formData.type === 'info' ? 'text-purple-400' : 'text-blue-400'}>
-                                {formData.type === 'info' ? 'Information Section' : 'Bilingual System'}
-                            </span>
+                            <div className={formData.type === 'info' ? 'text-purple-400' : 'text-blue-400'}>
+                                {formData.type === 'info' ? 'Information Section' : 'System Catalogue'}
+                                <span className="ml-2 opacity-50 text-[8px]">ID: {formData.id}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -353,11 +401,13 @@ const CatalogEdit = () => {
                                                 label="Asset: Product Box Image"
                                                 currentImage={variant.boxImage}
                                                 onUploadSuccess={(url) => handleVariantChange(idx, 'boxImage', url)}
+                                                onlyImages={true}
                                             />
                                             <ImageUpload
                                                 label="Asset: Tech Render Image"
                                                 currentImage={variant.implantImage}
                                                 onUploadSuccess={(url) => handleVariantChange(idx, 'implantImage', url)}
+                                                onlyImages={true}
                                             />
                                         </div>
                                         <div className="flex justify-end">
@@ -434,6 +484,7 @@ const CatalogEdit = () => {
                                             label="Article Asset"
                                             currentImage={article.image}
                                             onUploadSuccess={(url) => handleArticleChange(idx, 'image', null, url)}
+                                            onlyImages={true}
                                         />
                                     </div>
                                 </div>
@@ -456,13 +507,90 @@ const CatalogEdit = () => {
                             <ImageUpload
                                 label="Hero Asset Upload"
                                 currentImage={formData.images.hero}
-                                onUploadSuccess={(url) => setFormData(prev => ({ ...prev, images: { ...prev.images, hero: url } }))}
+                                onUploadSuccess={(url) => handleImageChange('hero', url)}
+                                onlyImages={true}
                             />
+
+                            {/* Section Specific Assets */}
+                            {(formData.id?.includes('farbleit') || formData.id?.includes('bohr') || formData.id?.includes('chirurgie')) && (
+                                <div className="space-y-6 pt-6 border-t border-white/5 bg-white/[0.01] p-6 rounded-[32px]">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Sparkles className="w-4 h-4 text-purple-400" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Custom Page Visuals</span>
+                                    </div>
+
+                                    {formData.id?.includes('farbleit') && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <ImageUpload
+                                                label="Tube in Tube"
+                                                currentImage={formData.images?.tubeInTube}
+                                                onUploadSuccess={(url) => handleImageChange('tubeInTube', url)}
+                                                onlyImages={true}
+                                            />
+                                            <ImageUpload
+                                                label="Insert Mount"
+                                                currentImage={formData.images?.insertMount}
+                                                onUploadSuccess={(url) => handleImageChange('insertMount', url)}
+                                                onlyImages={true}
+                                            />
+                                            <ImageUpload
+                                                label="Deckschraube"
+                                                currentImage={formData.images?.deckschraube}
+                                                onUploadSuccess={(url) => handleImageChange('deckschraube', url)}
+                                                onlyImages={true}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {formData.id?.includes('chirurgie') && (
+                                        <ImageUpload
+                                            label="Surgery Tray Diagram"
+                                            currentImage={formData.images?.diagramImage}
+                                            onUploadSuccess={(url) => handleImageChange('diagramImage', url)}
+                                            onlyImages={true}
+                                        />
+                                    )}
+
+                                    {formData.id?.includes('bohr') && (
+                                        <ImageUpload
+                                            label="Bohrsystem Layout / Diagram"
+                                            currentImage={formData.images?.diagramImage}
+                                            onUploadSuccess={(url) => handleImageChange('diagramImage', url)}
+                                            onlyImages={true}
+                                        />
+                                    )}
+
+                                    <div className="space-y-4 pt-6 border-t border-white/5">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Page Gallery (Bottom Section)</label>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            {(formData.images?.extraImages || []).map((img, idx) => (
+                                                <div key={idx} className="relative group/gal aspect-[3/4] overflow-hidden rounded-2xl border border-white/10">
+                                                    <img src={img} className="w-full h-full object-cover" />
+                                                    <button
+                                                        onClick={() => removeExtraImage(idx)}
+                                                        className="absolute top-2 right-2 w-8 h-8 bg-black/80 rounded-full flex items-center justify-center text-red-400 opacity-0 group-hover/gal:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <div className="aspect-[3/4] bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer group/add p-2 text-center">
+                                                <ImageUpload
+                                                    label="+"
+                                                    onUploadSuccess={(url) => handleExtraImageChange(-1, url)}
+                                                    onlyImages={true}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-2 text-left">
                                 <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">Direct URL (Optional Override)</label>
                                 <input
                                     value={formData.images.hero}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, images: { ...prev.images, hero: e.target.value } }))}
+                                    onChange={(e) => handleImageChange('hero', e.target.value)}
                                     className="w-full bg-slate-950/80 border border-white/5 rounded-2xl py-4 px-5 text-[10px] text-blue-400 focus:border-blue-500/30 outline-none font-bold italic"
                                     placeholder="https://cloud.alte.de/assets/hero.webp"
                                 />

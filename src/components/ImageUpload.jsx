@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, X, Check, RefreshCcw, ImageIcon, FileText } from 'lucide-react';
 import api from '../api/client';
 
-const ImageUpload = ({ onUploadSuccess, currentImage, label }) => {
+const ImageUpload = ({ onUploadSuccess, currentImage, label, onlyImages = false }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState(null);
@@ -13,9 +13,19 @@ const ImageUpload = ({ onUploadSuccess, currentImage, label }) => {
         if (!file) return;
 
         // Validation
-        if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-            setError('Please select an image or PDF file');
-            return;
+        const isImage = file.type.startsWith('image/');
+        const isPdf = file.type === 'application/pdf';
+
+        if (onlyImages) {
+            if (!isImage) {
+                setError('Please select an image file (PDF not allowed here)');
+                return;
+            }
+        } else {
+            if (!isImage && !isPdf) {
+                setError('Please select an image or PDF file');
+                return;
+            }
         }
 
         const formData = new FormData();
@@ -135,7 +145,7 @@ const ImageUpload = ({ onUploadSuccess, currentImage, label }) => {
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 className="hidden"
-                accept="image/*,application/pdf"
+                accept={onlyImages ? "image/*" : "image/*,application/pdf"}
             />
         </div>
     );
