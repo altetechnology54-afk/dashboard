@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { Save, Loader2, Globe, FileText, Info, Mail, ShieldAlert } from 'lucide-react';
+import ImageUpload from '../components/ImageUpload';
 
 const PagesEdit = () => {
     const [pages, setPages] = useState([]);
@@ -87,7 +88,7 @@ const PagesEdit = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Sidebar - Page List */}
                 <div className="space-y-4">
-                    {['about', 'contact', 'impressum', 'datenschutz', 'agb'].map((pSlug) => {
+                    {['about', 'contact', 'impressum', 'datenschutz', 'agb', 'catalog-pdf'].map((pSlug) => {
                         const page = pages.find(p => p.page === pSlug) || { page: pSlug, title: { de: pSlug.toUpperCase() } };
                         const isActive = selectedPage?.page === pSlug;
 
@@ -96,13 +97,14 @@ const PagesEdit = () => {
                                 key={pSlug}
                                 onClick={() => handleSelectPage(page)}
                                 className={`w-full text-left p-6 rounded-3xl border transition-all flex items-center gap-4 ${isActive
-                                        ? 'bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-600/20 translate-x-2'
-                                        : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/[0.08]'
+                                    ? 'bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-600/20 translate-x-2'
+                                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/[0.08]'
                                     }`}
                             >
                                 {pSlug === 'about' && <Info className="w-5 h-5" />}
                                 {pSlug === 'contact' && <Mail className="w-5 h-5" />}
                                 {['impressum', 'datenschutz', 'agb'].includes(pSlug) && <ShieldAlert className="w-5 h-5" />}
+                                {pSlug === 'catalog-pdf' && <FileText className="w-5 h-5" />}
                                 <span className="font-black uppercase italic tracking-tighter text-lg">{pSlug}</span>
                             </button>
                         );
@@ -129,79 +131,81 @@ const PagesEdit = () => {
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
-                                {/* GERMAN SECTION */}
-                                <div className="space-y-8 bg-white/[0.02] p-8 rounded-[30px] border border-white/5">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-black text-white">DE</div>
-                                        <h5 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">German Content</h5>
+                            {pageData.page !== 'catalog-pdf' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+                                    {/* GERMAN SECTION */}
+                                    <div className="space-y-8 bg-white/[0.02] p-8 rounded-[30px] border border-white/5">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-black text-white">DE</div>
+                                            <h5 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">German Content</h5>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Page Title (DE)</label>
+                                                <input
+                                                    value={pageData.title?.de || ''}
+                                                    onChange={(e) => updateField('title', 'de', e.target.value)}
+                                                    className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-bold italic focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Subtitle (DE)</label>
+                                                <input
+                                                    value={pageData.subtitle?.de || ''}
+                                                    onChange={(e) => updateField('subtitle', 'de', e.target.value)}
+                                                    className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Main Content (DE)</label>
+                                                <textarea
+                                                    rows="10"
+                                                    value={pageData.content?.de || ''}
+                                                    onChange={(e) => updateField('content', 'de', e.target.value)}
+                                                    className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Page Title (DE)</label>
-                                            <input
-                                                value={pageData.title?.de || ''}
-                                                onChange={(e) => updateField('title', 'de', e.target.value)}
-                                                className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-bold italic focus:ring-2 focus:ring-blue-500/20 transition-all"
-                                            />
+                                    {/* ENGLISH SECTION */}
+                                    <div className="space-y-8 bg-white/[0.02] p-8 rounded-[30px] border border-white/5">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-black text-white">EN</div>
+                                            <h5 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">English Content</h5>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Subtitle (DE)</label>
-                                            <input
-                                                value={pageData.subtitle?.de || ''}
-                                                onChange={(e) => updateField('subtitle', 'de', e.target.value)}
-                                                className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Main Content (DE)</label>
-                                            <textarea
-                                                rows="10"
-                                                value={pageData.content?.de || ''}
-                                                onChange={(e) => updateField('content', 'de', e.target.value)}
-                                                className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                                            />
+
+                                        <div className="space-y-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Page Title (EN)</label>
+                                                <input
+                                                    value={pageData.title?.en || ''}
+                                                    onChange={(e) => updateField('title', 'en', e.target.value)}
+                                                    className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-bold italic focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Subtitle (EN)</label>
+                                                <input
+                                                    value={pageData.subtitle?.en || ''}
+                                                    onChange={(e) => updateField('subtitle', 'en', e.target.value)}
+                                                    className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Main Content (EN)</label>
+                                                <textarea
+                                                    rows="10"
+                                                    value={pageData.content?.en || ''}
+                                                    onChange={(e) => updateField('content', 'en', e.target.value)}
+                                                    className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* ENGLISH SECTION */}
-                                <div className="space-y-8 bg-white/[0.02] p-8 rounded-[30px] border border-white/5">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-black text-white">EN</div>
-                                        <h5 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">English Content</h5>
-                                    </div>
-
-                                    <div className="space-y-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Page Title (EN)</label>
-                                            <input
-                                                value={pageData.title?.en || ''}
-                                                onChange={(e) => updateField('title', 'en', e.target.value)}
-                                                className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-bold italic focus:ring-2 focus:ring-blue-500/20 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Subtitle (EN)</label>
-                                            <input
-                                                value={pageData.subtitle?.en || ''}
-                                                onChange={(e) => updateField('subtitle', 'en', e.target.value)}
-                                                className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Main Content (EN)</label>
-                                            <textarea
-                                                rows="10"
-                                                value={pageData.content?.en || ''}
-                                                onChange={(e) => updateField('content', 'en', e.target.value)}
-                                                className="w-full bg-white/5 border-white/10 rounded-2xl px-6 py-4 text-white font-medium focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
 
                             {/* EXTRA DATA FIELDS (e.g. for Contact Page) */}
                             {pageData.page === 'contact' && (
@@ -232,6 +236,38 @@ const PagesEdit = () => {
                                                 className="w-full bg-white/5 border-white/10 rounded-xl px-4 py-3 text-white font-bold transition-all"
                                             />
                                         </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* CATALOG PDF UPLOAD */}
+                            {pageData.page === 'catalog-pdf' && (
+                                <div className="space-y-12 relative z-10">
+                                    <div className="bg-blue-600/10 p-12 rounded-[50px] border border-blue-500/20">
+                                        <div className="flex items-center gap-6 mb-10">
+                                            <div className="w-16 h-16 bg-blue-600/20 rounded-[28px] flex items-center justify-center text-blue-500">
+                                                <FileText className="w-8 h-8" />
+                                            </div>
+                                            <div>
+                                                <h5 className="text-3xl font-black text-white uppercase italic tracking-tighter">Main Catalog PDF</h5>
+                                                <p className="text-slate-500 font-medium">This document will be displayed in the "Katalog" tab on the main catalog page.</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="max-w-xl">
+                                            <ImageUpload
+                                                label="Upload PDF Document"
+                                                currentImage={pageData.data?.pdfUrl}
+                                                onUploadSuccess={(url) => updateDataField('pdfUrl', url)}
+                                            />
+                                        </div>
+
+                                        {pageData.data?.pdfUrl && (
+                                            <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/5">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Active Document URL</p>
+                                                <code className="text-xs text-blue-400 break-all">{pageData.data.pdfUrl}</code>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
