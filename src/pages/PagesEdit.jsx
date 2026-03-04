@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/client';
-import { Save, Loader2, Globe, FileText, Info, Mail, ShieldAlert } from 'lucide-react';
+import { Save, Loader2, Globe, FileText, Info, Mail, ShieldAlert, ArrowUp, ArrowDown, Trash2, Layout, Zap } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
 
 const PagesEdit = () => {
@@ -10,9 +11,21 @@ const PagesEdit = () => {
     const [saving, setSaving] = useState(false);
     const [pageData, setPageData] = useState(null);
 
+    const [searchParams] = useSearchParams();
+
     useEffect(() => {
         fetchPages();
     }, []);
+
+    // Auto-select page when URL query changes (e.g. ?page=catalog)
+    useEffect(() => {
+        if (pages.length === 0) return;
+        const slug = searchParams.get('page');
+        if (slug) {
+            const target = pages.find(p => p.page === slug);
+            if (target) handleSelectPage(target);
+        }
+    }, [searchParams, pages]);
 
     const fetchPages = async () => {
         try {
@@ -66,6 +79,36 @@ const PagesEdit = () => {
         });
     };
 
+    const addCatalogSection = (type) => {
+        const sections = pageData.data?.sections || [];
+        const newSection = {
+            type,
+            data: type === 'text' ? { content: { de: '', en: '' } } :
+                type === 'side-side' ? { image1: '', image2: '' } :
+                    { image: '' }
+        };
+        updateDataField('sections', [...sections, newSection]);
+    };
+
+    const updateCatalogSection = (idx, newData) => {
+        const sections = [...(pageData.data?.sections || [])];
+        sections[idx].data = newData;
+        updateDataField('sections', sections);
+    };
+
+    const deleteCatalogSection = (idx) => {
+        const sections = (pageData.data?.sections || []).filter((_, i) => i !== idx);
+        updateDataField('sections', sections);
+    };
+
+    const moveCatalogSection = (idx, dir) => {
+        const sections = [...(pageData.data?.sections || [])];
+        const target = idx + dir;
+        if (target < 0 || target >= sections.length) return;
+        [sections[idx], sections[target]] = [sections[target], sections[idx]];
+        updateDataField('sections', sections);
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -88,7 +131,7 @@ const PagesEdit = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Sidebar - Page List */}
                 <div className="space-y-4">
-                    {['about', 'contact', 'impressum', 'datenschutz', 'agb', 'catalog-pdf'].map((pSlug) => {
+                    {['about', 'catalog', 'special-system', 'contact', 'impressum', 'datenschutz', 'agb', 'catalog-pdf'].map((pSlug) => {
                         const page = pages.find(p => p.page === pSlug) || { page: pSlug, title: { de: pSlug.toUpperCase() } };
                         const isActive = selectedPage?.page === pSlug;
 
@@ -102,10 +145,16 @@ const PagesEdit = () => {
                                     }`}
                             >
                                 {pSlug === 'about' && <Info className="w-5 h-5" />}
+                                {pSlug === 'catalog' && <Layout className="w-5 h-5 text-blue-500" />}
+                                {pSlug === 'special-system' && <Zap className="w-5 h-5 text-yellow-500" />}
                                 {pSlug === 'contact' && <Mail className="w-5 h-5" />}
                                 {['impressum', 'datenschutz', 'agb'].includes(pSlug) && <ShieldAlert className="w-5 h-5" />}
                                 {pSlug === 'catalog-pdf' && <FileText className="w-5 h-5" />}
-                                <span className="font-black uppercase italic tracking-tighter text-lg">{pSlug}</span>
+                                <span className="font-black uppercase italic tracking-tighter text-lg">
+                                    {pSlug === 'catalog' ? 'Main Catalog' :
+                                        pSlug === 'special-system' ? 'Special System' :
+                                            pSlug}
+                                </span>
                             </button>
                         );
                     })}
@@ -207,6 +256,36 @@ const PagesEdit = () => {
                                 </div>
                             )}
 
+                            {/* CATALOG & SPECIAL SYSTEM SECTIONS EDITOR */}
+                            {(pageData.page === 'catalog' || pageData.page === 'special-system') && (
+                                <div className="space-y-12 relative z-10">
+                                    <div className="flex items-center justify-between">
+                                        <h5 className="text-xl font-black text-white uppercase italic tracking-tighter">Catalog Body Sections</h5>
+                                        <div className="flex gap-2">
+                                            <SectionAddButton label="Text" onClick={() => addCatalogSection('text')} />
+                                            <SectionAddButton label="Images 1x2" onClick={() => addCatalogSection('side-side')} />
+                                            <SectionAddButton label="Image Full" onClick={() => addCatalogSection('full-width')} />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-8">
+                                        {(pageData.data?.sections || []).map((section, sIdx) => (
+                                            <CatalogSectionEditor
+                                                key={sIdx}
+                                                section={section}
+                                                idx={sIdx}
+                                                onUpdate={(newSectionData) => updateCatalogSection(sIdx, newSectionData)}
+                                                onDelete={() => deleteCatalogSection(sIdx)}
+                                                onMoveUp={() => moveCatalogSection(sIdx, -1)}
+                                                onMoveDown={() => moveCatalogSection(sIdx, 1)}
+                                                isFirst={sIdx === 0}
+                                                isLast={sIdx === (pageData.data?.sections?.length || 0) - 1}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* EXTRA DATA FIELDS (e.g. for Contact Page) */}
                             {pageData.page === 'contact' && (
                                 <div className="space-y-6 bg-blue-600/10 p-10 rounded-[40px] border border-blue-500/20 relative z-10">
@@ -275,6 +354,79 @@ const PagesEdit = () => {
                     )}
                 </div>
             </div>
+        </div>
+    );
+};
+
+const SectionAddButton = ({ label, onClick }) => (
+    <button
+        onClick={onClick}
+        className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600 text-blue-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+    >
+        + {label}
+    </button>
+);
+
+const CatalogSectionEditor = ({ section, idx, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) => {
+    return (
+        <div className="bg-white/[0.02] border border-white/10 rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">#{idx + 1}</span>
+                    <span className="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">{section.type}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={onMoveUp} disabled={isFirst} className="p-2 hover:bg-white/5 rounded-lg text-slate-500 disabled:opacity-20"><ArrowUp className="w-4 h-4" /></button>
+                    <button onClick={onMoveDown} disabled={isLast} className="p-2 hover:bg-white/5 rounded-lg text-slate-500 disabled:opacity-20"><ArrowDown className="w-4 h-4" /></button>
+                    <button onClick={onDelete} className="p-2 hover:bg-red-500/20 text-red-500 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                </div>
+            </div>
+
+            {section.type === 'text' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">German Text</label>
+                        <textarea
+                            rows="5"
+                            value={section.data.content?.de || ''}
+                            onChange={(e) => onUpdate({ ...section.data, content: { ...section.data.content, de: e.target.value } })}
+                            className="w-full bg-black/20 border border-white/10 rounded-xl p-4 text-white text-sm"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest">English Text</label>
+                        <textarea
+                            rows="5"
+                            value={section.data.content?.en || ''}
+                            onChange={(e) => onUpdate({ ...section.data, content: { ...section.data.content, en: e.target.value } })}
+                            className="w-full bg-black/20 border border-white/10 rounded-xl p-4 text-white text-sm"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {section.type === 'side-side' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <ImageUpload
+                        label="Left Image"
+                        currentImage={section.data.image1}
+                        onUploadSuccess={(url) => onUpdate({ ...section.data, image1: url })}
+                    />
+                    <ImageUpload
+                        label="Right Image"
+                        currentImage={section.data.image2}
+                        onUploadSuccess={(url) => onUpdate({ ...section.data, image2: url })}
+                    />
+                </div>
+            )}
+
+            {section.type === 'full-width' && (
+                <ImageUpload
+                    label="Full Width Image"
+                    currentImage={section.data.image}
+                    onUploadSuccess={(url) => onUpdate({ ...section.data, image: url })}
+                />
+            )}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import {
     Package,
@@ -9,8 +9,74 @@ import {
     RefreshCcw,
     Edit2,
     Database,
-    ShieldCheck
+    ShieldCheck,
+    Zap,
+    Loader2
 } from 'lucide-react';
+
+// Pinned card for the Special Implant System entry
+const SpecialSystemCard = ({ catalogs, fetchCatalogs }) => {
+    const navigate = useNavigate();
+    const [creating, setCreating] = useState(false);
+
+    const existing = catalogs.find(c => c.id === 'special-system');
+
+    const handleCreate = async () => {
+        setCreating(true);
+        try {
+            const res = await import('../api/client').then(m => m.default.post('/catalog-sections', {
+                id: 'special-system',
+                name: { de: 'Das spezielle Implantatsystem', en: 'The Special Implant System' },
+                title: { de: '', en: '' },
+                description: { de: '', en: '' },
+                applicationArea: { de: '', en: '' },
+                type: 'info',
+                articles: [],
+            }));
+            await fetchCatalogs();
+            navigate(`/catalogs/edit/${res.data.data.id}`);
+        } catch (err) {
+            console.error('Failed to create special-system entry', err);
+        }
+        setCreating(false);
+    };
+
+    return (
+        <div className="group relative glass-card rounded-[40px] overflow-hidden border border-yellow-500/20 mb-2 hover:border-yellow-500/50 transition-all duration-500">
+            <div className="p-8 flex items-center justify-between gap-8">
+                <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-yellow-500/10 rounded-[24px] flex items-center justify-center border border-yellow-500/20 group-hover:border-yellow-500/50 flex-shrink-0">
+                        <Zap className="w-8 h-8 text-yellow-400" />
+                    </div>
+                    <div>
+                        <span className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Pinned Entry</span>
+                        <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Das spezielle Implantatsystem</h3>
+                        <p className="text-slate-500 text-[11px] font-bold">
+                            {existing ? 'Edit articles, images, and benefit text for the special system page.' : 'Entry does not exist yet — click to create it.'}
+                        </p>
+                    </div>
+                </div>
+                {existing ? (
+                    <Link
+                        to={`/catalogs/edit/${existing.id}`}
+                        className="flex-shrink-0 bg-yellow-500 hover:bg-yellow-400 text-black font-black px-8 py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl shadow-yellow-500/20 active:scale-95"
+                    >
+                        <Edit2 className="w-4 h-4" /> Edit
+                    </Link>
+                ) : (
+                    <button
+                        onClick={handleCreate}
+                        disabled={creating}
+                        className="flex-shrink-0 bg-yellow-500 hover:bg-yellow-400 text-black font-black px-8 py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl shadow-yellow-500/20 active:scale-95 disabled:opacity-50"
+                    >
+                        {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        {creating ? 'Creating...' : 'Create Entry'}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const CatalogList = () => {
     const [catalogs, setCatalogs] = useState([]);
@@ -79,6 +145,9 @@ const CatalogList = () => {
                     Deploy New Section
                 </button>
             </div>
+
+            {/* Special System Quick Card */}
+            <SpecialSystemCard catalogs={catalogs} fetchCatalogs={fetchCatalogs} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 {catalogs.map((catalog) => (

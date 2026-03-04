@@ -58,7 +58,17 @@ const CatalogEdit = () => {
                         subDescription: typeof data.subDescription === 'string' ? { de: data.subDescription, en: data.subDescription } : data.subDescription || { de: '', en: '' },
                         benefitBar: typeof data.benefitBar === 'string' ? { de: data.benefitBar, en: data.benefitBar } : data.benefitBar || { de: '', en: '' },
                         applicationArea: typeof data.applicationArea === 'string' ? { de: data.applicationArea, en: data.applicationArea } : data.applicationArea || { de: '', en: '' },
-                        articles: data.articles || [],
+                        articles: (data.articles || []).map(a => ({
+                            ...a,
+                            artNr: a.artNr || '',
+                            description: a.description && typeof a.description === 'object'
+                                ? { de: a.description.de || '', en: a.description.en || '' }
+                                : { de: (typeof a.description === 'string' ? a.description : ''), en: '' },
+                            category: a.category && typeof a.category === 'object'
+                                ? { de: a.category.de || '', en: a.category.en || '' }
+                                : { de: (typeof a.category === 'string' ? a.category : ''), en: '' },
+                            image: a.image || ''
+                        })),
                         images: {
                             hero: '',
                             tubeInTube: '',
