@@ -96,7 +96,7 @@ const ImageUpload = ({ onUploadSuccess, currentImage, label, onlyImages = false 
                     ) : (
                         <img
                             src={currentImage}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110"
                             alt="Preview"
                         />
                     )
