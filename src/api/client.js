@@ -7,9 +7,11 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 15000,
 });
 
-// Add a request interceptor to add the JWT token to headers
+// ─── Request Interceptor ─────────────────────────────────────────────────────
+// Attaches the JWT token to every request
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -18,7 +20,22 @@ api.interceptors.request.use(
         }
         return config;
     },
+    (error) => Promise.reject(error)
+);
+
+// ─── Response Interceptor ────────────────────────────────────────────────────
+// Handles 401 Unauthorized → clears token and redirects to /login
+api.interceptors.response.use(
+    (response) => response,
     (error) => {
+        if (error.response?.status === 401) {
+            // Token expired or invalid
+            localStorage.removeItem('token');
+            // Redirect to login if not already there
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
         return Promise.reject(error);
     }
 );
